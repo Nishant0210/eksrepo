@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+  labels:
+    app: ghost
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: ghost
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: ghost
+  labels:
+    app: ghost
+spec:
+  selector:
+    matchLabels:
+      app: ghost
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ghost
+        tier: frontend
+    spec:
+      containers:
+      - image: ghost:1-alpine
+        name: ghost
+        env:
+        - name: database_client
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key: client
+        - name: database_connection_host
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key: host
+        - name: database_connection_user
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key: user
+        - name: database_connection_password
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key:  ghostdcp
+        - name: database_connection_database
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key: ghostdcd
+        ports:
+        - containerPort: 2368
+          name: ghost
+        volumeMounts:
+        - name: ghost-persistent-storage
+          mountPath: /var/lib/ghost
+      volumes:
+      - name: ghost-persistent-storage
+        persistentVolumeClaim:
+          claimName: efs-ghost

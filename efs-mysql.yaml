@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost-mysql
+  labels:
+    app: ghost
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: ghost
+    tier: mysql
+  clusterIP: None
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: ghost-mysql
+  labels:
+    app: ghost
+spec:
+  selector:
+    matchLabels:
+      app: ghost
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ghost
+        tier: mysql
+    spec:
+      containers:
+      - image: mysql:5.7
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: eks-keys
+              key: rpassword
+        # - name: MYSQL_USER
+        #   valueFrom: 
+        #     secretKeyRef:
+        #       name: eks-keys
+        #       key: user
+        # - name: MYSQL_PASSWORD
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: eks-keys
+        #       key: password
+        # -name: MYSQL_DATABASE
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: eks-keys
+        #       key: database
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: efs-mysql
